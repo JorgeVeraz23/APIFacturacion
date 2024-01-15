@@ -58,5 +58,10 @@ namespace FacturacionAPI1.Repository
             dbSet.Remove(entidad);
             await Grabar();
         }
+
+        
+
+
+
     }
 }

@@ -2,8 +2,8 @@
 
 namespace FacturacionAPI1.Repository.IRepositorio
 {
-    public interface IProductoRepositorio : IRepositorio<ProductoRepositorio>
+    public interface IProductoRepositorio : IRepositorio<Producto>
     {
-        Task<ProductoRepositorio> Actualizar(ProductoRepositorio entidad);
+        Task<Producto> Actualizar(Producto entidad);
     }
 }

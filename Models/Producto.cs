@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 
 namespace FacturacionAPI1.Models;
@@ -45,5 +46,6 @@ public partial class Producto
 
     [ForeignKey("IdUsuario")]
     [InverseProperty("Productos")]
+    [JsonIgnore]
     public virtual Usuario? IdUsuarioNavigation { get; set; }
 }

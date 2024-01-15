@@ -1,5 +1,6 @@
 ﻿using FacturacionAPI1.Models;
 using FacturacionAPI1.Repository.IRepositorio;
+using System.Linq.Expressions;
 
 namespace FacturacionAPI1.Repository
 {
@@ -18,5 +19,7 @@ namespace FacturacionAPI1.Repository
             await _db.SaveChangesAsync();
             return entidad;
         }
+
+
     }
 }

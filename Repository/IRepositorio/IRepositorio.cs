@@ -1,6 +1,6 @@
 ﻿using System.Linq.Expressions;
 using FacturacionAPI1.Repository.IRepositorio;
-
+using FacturacionAPI1.Repository;
 namespace FacturacionAPI1.Repository.IRepositorio
 {
     public interface IRepositorio<T> where T : class

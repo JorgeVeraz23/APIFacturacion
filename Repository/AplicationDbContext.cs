@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Windows;
 using System.Collections.Generic;
 using FacturacionAPI1.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.SqlServer;
 
 namespace FacturacionAPI1.Repository;
 
@@ -46,7 +49,11 @@ public partial class AplicationDbContext : DbContext
             entity.HasOne(d => d.IdFacturaNavigation).WithMany(p => p.DetalleFacturas).HasConstraintName("FK__DetalleFa__IdFac__3A81B327");
 
             entity.HasOne(d => d.IdUsuarioNavigation).WithMany(p => p.DetalleFacturas).HasConstraintName("FK__DetalleFa__IdUsu__3D5E1FD2");
+
+           
         });
+
+
 
         modelBuilder.Entity<Factura>(entity =>
         {

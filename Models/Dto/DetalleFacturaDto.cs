@@ -9,6 +9,7 @@ namespace FacturacionAPI1.Models.Dto
         [Required]
         public int? IdFactura { get; set; }
         [Required]
+        public int? IdUsuario { get; set; }
         public string? CodigoProducto { get; set; }
 
         public string NombreProducto { get; set; } = null!;

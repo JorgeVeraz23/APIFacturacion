@@ -6,6 +6,7 @@ namespace FacturacionAPI1.Repository
     public class FamiliaProductoRepositorio : Repositorio<FamiliaProducto>, IFamiliaProductoRepositorio
     {
         public readonly AplicationDbContext _db;
+
         public FamiliaProductoRepositorio(AplicationDbContext db) : base(db)
         {
             _db = db;
@@ -20,3 +21,4 @@ namespace FacturacionAPI1.Repository
         }
     }
 }
+
