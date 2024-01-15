@@ -95,59 +95,129 @@ namespace FacturacionAPI1.Controllers
             }
 
         }
+        /*
+                [HttpPost]
+                [ProducesResponseType(StatusCodes.Status201Created)]
+                [ProducesResponseType(StatusCodes.Status400BadRequest)]
+                [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+                public async Task<ActionResult<Response>> CrearDetalleFactura([FromBody] DetalleFacturaCreateDto createDto)
+                {
+                    try
+                    {
+                        if (!ModelState.IsValid)
+                        {
+                            return BadRequest(ModelState);
+                        }
 
-        [HttpPost]
+                        if (await _usuarioRepo.Obtener(v => v.IdUsuario == createDto.IdUsuario) == null)
+                        {
+                            ModelState.AddModelError("ClaveForanea", "El Id de usuario no existe");
+                            return BadRequest(ModelState);
+                        }
+
+                        if (await _facturaRepo.Obtener(v => v.IdFactura == createDto.IdFactura) == null)
+                        {
+                            ModelState.AddModelError("ClaveForanea", "El Id de factura no existe");
+                            return BadRequest(ModelState);
+                        }
+
+                       var codigoProducto = createDto.CodigoProducto.ToUpperInvariant(); // Convierte a mayúsculas para comparación sin distinción de mayúsculas y minúsculas
+                        var productosEnMemoria = await _productoRepo.ObtenerTodos();
+                        var productoEnMemoria = productosEnMemoria.FirstOrDefault(p => p.Codigo.ToUpperInvariant() == codigoProducto);
+
+                        if (productoEnMemoria == null)
+                        {
+                            ModelState.AddModelError(nameof(createDto.CodigoProducto), "El código del producto no existe");
+                            return BadRequest(ModelState);
+                        }
+
+                        DetalleFactura modelo = _mapper.Map<DetalleFactura>(createDto);
+                        modelo.FechaCreacion = DateTime.Now;
+                        modelo.FechaActualizacion = DateTime.Now;
+
+                        await _detallefacturaRepo.Crear(modelo);
+                        _response.Resultado = modelo;
+                        _response.statusCode = HttpStatusCode.Created;
+
+                        return CreatedAtRoute("GetDetalleFactura", new { id = modelo.IdItem }, _response);
+                    }
+                    catch (Exception ex)
+                    {
+                        _response.IsExitoso = false;
+                        _response.ErrorMessages = new List<string>() { ex.ToString() };
+                    }
+                    return _response;
+                }
+        */
+
+        [HttpPost("AddItem/{idFactura}")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<Response>> CrearDetalleFactura([FromBody] DetalleFacturaCreateDto createDto)
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<Response>> AddItem(int idFactura, [FromBody] DetalleFacturaCreateDto itemDto)
         {
             try
             {
+                // Validation
                 if (!ModelState.IsValid)
                 {
                     return BadRequest(ModelState);
                 }
 
-                if (await _usuarioRepo.Obtener(v => v.IdUsuario == createDto.IdUsuario) == null)
+                // Retrieve factura
+                Factura factura = await _facturaRepo.Obtener(v => v.IdFactura == idFactura);
+                if (factura == null)
                 {
-                    ModelState.AddModelError("ClaveForanea", "El Id de usuario no existe");
+                    return NotFound();
+                }
+
+                // Validate product existence and stock availability
+                Producto producto = await _productoRepo.Obtener(v => v.Codigo == itemDto.CodigoProducto);
+                if (producto == null)
+                {
+                    ModelState.AddModelError("Producto", "Producto no encontrado");
+                    return BadRequest(ModelState);
+                }
+                if (producto.Stock < itemDto.Cantidad)
+                {
+                    ModelState.AddModelError("Producto", "Stock insuficiente");
                     return BadRequest(ModelState);
                 }
 
-                if (await _facturaRepo.Obtener(v => v.IdFactura == createDto.IdFactura) == null)
-                {
-                    ModelState.AddModelError("ClaveForanea", "El Id de factura no existe");
-                    return BadRequest(ModelState);
-                }
+                // Create DetalleFactura entity
+                DetalleFactura item = _mapper.Map<DetalleFactura>(itemDto);
+                item.IdFactura = factura.IdFactura;
+                item.Precio = producto.Precio; // Ensure consistent pricing
+                item.Subtotal = item.Precio * item.Cantidad;
 
-               var codigoProducto = createDto.CodigoProducto.ToUpperInvariant(); // Convierte a mayúsculas para comparación sin distinción de mayúsculas y minúsculas
-                var productosEnMemoria = await _productoRepo.ObtenerTodos();
-                var productoEnMemoria = productosEnMemoria.FirstOrDefault(p => p.Codigo.ToUpperInvariant() == codigoProducto);
+                // Add item to factura
+                factura.DetalleFacturas.Add(item);
 
-                if (productoEnMemoria == null)
-                {
-                    ModelState.AddModelError(nameof(createDto.CodigoProducto), "El código del producto no existe");
-                    return BadRequest(ModelState);
-                }
+                // Update product stock
+                producto.Stock -= item.Cantidad;
 
-                DetalleFactura modelo = _mapper.Map<DetalleFactura>(createDto);
-                modelo.FechaCreacion = DateTime.Now;
-                modelo.FechaActualizacion = DateTime.Now;
+                // Save factura and product
+                await _facturaRepo.Grabar();
+                await _productoRepo.Grabar(); // Ensure product update
 
-                await _detallefacturaRepo.Crear(modelo);
-                _response.Resultado = modelo;
+                // Update factura total
+                decimal igv = factura.Subtotal * factura.PorcentajeIgv;
+                decimal total = factura.Subtotal + igv;
+                factura.Igv = igv;
+                factura.Total = total;
+
+                _response.Resultado = item;
                 _response.statusCode = HttpStatusCode.Created;
-
-                return CreatedAtRoute("GetDetalleFactura", new { id = modelo.IdItem }, _response);
+                return CreatedAtAction("GetDetalleFactura", new { idFactura = idFactura, idItem = item.IdItem }, _response);
             }
             catch (Exception ex)
             {
                 _response.IsExitoso = false;
                 _response.ErrorMessages = new List<string>() { ex.ToString() };
+                return BadRequest(_response);
             }
-            return _response;
         }
+
 
 
         [HttpDelete("{id:int}")]

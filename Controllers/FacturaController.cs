@@ -21,13 +21,15 @@ namespace FacturacionAPI1.Controllers
         private readonly IFacturaRepositorio _facturaRepo;
         private readonly IMapper _mapper;
         private readonly IUsuarioRepositorio _usuarioRepo;
+        private readonly IProductoRepositorio _productoRepo;
         protected Response _response;
 
-        public FacturaController(ILogger<FacturaController> logger, IFacturaRepositorio facturaRepo, IUsuarioRepositorio usuarioRepo, IMapper mapper)
+        public FacturaController(ILogger<FacturaController> logger, IFacturaRepositorio facturaRepo, IUsuarioRepositorio usuarioRepo, IProductoRepositorio productoRepo,IMapper mapper)
         {
             _logger = logger;
             _facturaRepo = facturaRepo;
             _usuarioRepo = usuarioRepo;
+            _productoRepo = productoRepo;
             _mapper = mapper;
             _response = new();
         }
@@ -93,6 +95,7 @@ namespace FacturacionAPI1.Controllers
 
         }
 
+
         [HttpPost]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -101,44 +104,53 @@ namespace FacturacionAPI1.Controllers
         {
             try
             {
+                // Validation
                 if (!ModelState.IsValid)
                 {
                     return BadRequest(ModelState);
                 }
 
-
+                // Check for valid user
                 if (await _usuarioRepo.Obtener(v => v.IdUsuario == createDto.IdUsuario) == null)
                 {
                     ModelState.AddModelError("ClaveForanea", "El Id de usuario no existe");
                     return BadRequest(ModelState);
                 }
 
+                // Map to Factura entity
+                Factura factura = _mapper.Map<Factura>(createDto);
 
-                if (createDto == null)
-                {
-                    return BadRequest(createDto);
-                }
-                Factura modelo = _mapper.Map<Factura>(createDto);
-                modelo.FechaCreacion = DateTime.Now;
-                modelo.FechaActualizacion = DateTime.Now;
+                // Set creation and update timestamps
+                factura.FechaCreacion = DateTime.Now;
+                factura.FechaActualizacion = DateTime.Now;
 
+                // Save factura
+                await _facturaRepo.Crear(factura);
 
-                await _facturaRepo.Crear(modelo);
-                _response.Resultado = modelo;
+                // Calculate IGV and Total
+                decimal igv = factura.Subtotal * factura.PorcentajeIgv;
+                decimal total = factura.Subtotal + igv;
+                factura.Igv = igv;
+                factura.Total = total;
+
+                // Update factura with calculated values
+                await _facturaRepo.Grabar();
+
+                // Prepare response
+                _response.Resultado = factura;
                 _response.statusCode = HttpStatusCode.Created;
 
-                return CreatedAtRoute("GetFactura", new { id = modelo.IdFactura }, _response);
+                return CreatedAtRoute("GetFactura", new { id = factura.IdFactura }, _response);
             }
             catch (Exception ex)
             {
-
                 _response.IsExitoso = false;
                 _response.ErrorMessages = new List<string>() { ex.ToString() };
-
-
+                return _response;
             }
-            return _response;
         }
+
+
 
         [HttpDelete("{id:int}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
