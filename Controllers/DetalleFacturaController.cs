@@ -254,7 +254,7 @@ namespace FacturacionAPI1.Controllers
                 throw;
             }
         }
-
+        /*
         [HttpPut("{id:int}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -296,7 +296,82 @@ namespace FacturacionAPI1.Controllers
             await _detallefacturaRepo.Actualizar(modelo);
             _response.statusCode = HttpStatusCode.NoContent;
             return Ok(_response);
+        }*/
+
+
+        [HttpPut("UpdateItem/{idFactura}/{idItem}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<Response>> UpdateItem(int idFactura, int idItem, [FromBody] DetalleFacturaUpdateDto itemDto)
+        {
+            try
+            {
+                // Validation
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                // Retrieve factura and existing item
+                Factura factura = await _facturaRepo.Obtener(v => v.IdFactura == idFactura);
+                if (factura == null)
+                {
+                    return NotFound();
+                }
+
+                DetalleFactura existingItem = await _detallefacturaRepo.Obtener(v => v.IdItem == idItem);
+                if (existingItem == null)
+                {
+                    return NotFound();
+                }
+
+                // Adjust product stock (if quantity changed)
+                if (existingItem.Cantidad != itemDto.Cantidad)
+                {
+                    Producto producto = await _productoRepo.Obtener(v => v.Codigo == existingItem.CodigoProducto);
+                    producto.Stock += existingItem.Cantidad; // Return previously withdrawn stock
+                    producto.Stock -= itemDto.Cantidad; // Subtract new quantity
+                    await _productoRepo.Grabar();
+                }
+
+                // Update subtotal and factura total
+                existingItem.Subtotal = existingItem.Precio * existingItem.Cantidad;
+                decimal igv = factura.Subtotal * factura.PorcentajeIgv;
+                decimal total = factura.Subtotal + igv;
+                factura.Igv = igv;
+                factura.Total = total;
+
+                // Save changes
+                await _facturaRepo.Grabar();
+
+                // Store the old IdItem value before changing it
+                int oldIdItemValue = existingItem.IdItem;
+
+                // Delete the existing item with the old IdItem value
+                _detallefacturaRepo.Remover(existingItem);
+                await _detallefacturaRepo.Grabar();  // SaveChanges
+
+                // Set the new IdItem value
+                existingItem.IdItem = itemDto.NewIdItem;
+
+                // Add the modified item back to the context
+                _detallefacturaRepo.Crear(existingItem);
+                await _detallefacturaRepo.Grabar();  // SaveChanges
+
+                _response.statusCode = HttpStatusCode.NoContent;
+                return Ok(_response);
+            }
+            catch (Exception ex)
+            {
+                _response.IsExitoso = false;
+                _response.ErrorMessages = new List<string>() { ex.ToString() };
+                return BadRequest(_response);
+            }
         }
+
+
+
 
 
 

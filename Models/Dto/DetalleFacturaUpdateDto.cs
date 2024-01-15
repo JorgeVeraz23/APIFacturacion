@@ -20,5 +20,7 @@ namespace FacturacionAPI1.Models.Dto
         public int Cantidad { get; set; }
 
         public decimal Subtotal { get; set; }
+
+        public int NewIdItem { get; set; }
     }
 }

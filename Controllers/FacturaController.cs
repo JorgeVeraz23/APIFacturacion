@@ -187,7 +187,7 @@ namespace FacturacionAPI1.Controllers
             }
         }
 
-        [HttpPut("{id:int}")]
+        /*[HttpPut("{id:int}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> UpdateFactura(int id, [FromBody] FacturaUpdateDto updateDto)
@@ -212,7 +212,64 @@ namespace FacturacionAPI1.Controllers
             await _facturaRepo.Actualizar(modelo);
             _response.statusCode = HttpStatusCode.NoContent;
             return Ok(_response);
+        }*/
+
+        [HttpPut("{id}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<Response>> EditarFactura(int id, [FromBody] FacturaUpdateDto editDto)
+        {
+            try
+            {
+                // Validation
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                // Retrieve factura
+                Factura factura = await _facturaRepo.Obtener(v => v.IdFactura == id);
+                if (factura == null)
+                {
+                    return NotFound();
+                }
+
+                // Check for valid user (if applicable)
+                if (await _usuarioRepo.Obtener(v => v.IdUsuario == editDto.IdUsuario) == null)
+                {
+                    ModelState.AddModelError("ClaveForanea", "El Id de usuario no existe");
+                    return BadRequest(ModelState);
+                }
+
+                // Map editable fields to factura
+                _mapper.Map(editDto, factura);
+
+                // Update fields that shouldn't be mapped directly
+                factura.FechaActualizacion = DateTime.Now;
+
+                // Ensure consistency with IGV and total
+                decimal igv = factura.Subtotal * factura.PorcentajeIgv;
+                decimal total = factura.Subtotal + igv;
+                factura.Igv = igv;
+                factura.Total = total;
+
+                // Save factura
+                await _facturaRepo.Grabar();
+
+                // Prepare response
+                _response.Resultado = factura;
+                _response.statusCode = HttpStatusCode.OK;
+                return Ok(_response);
+            }
+            catch (Exception ex)
+            {
+                _response.IsExitoso = false;
+                _response.ErrorMessages = new List<string>() { ex.ToString() };
+                return BadRequest(_response);
+            }
         }
+
 
 
 
