@@ -24,5 +24,7 @@ namespace FacturacionAPI1.Models.Dto
 
         [Required]
         public int? IdUsuario { get; set; }
-    }
+
+        
+}
 }

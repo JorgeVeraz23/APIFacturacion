@@ -20,13 +20,15 @@ namespace FacturacionAPI1.Controllers
     {
         private readonly ILogger<UsuarioController> _logger;
         private readonly IUsuarioRepositorio _usuarioRepo;
+        private readonly IntentosFallidosManager _intentosFallidosManager;
         private readonly IMapper _mapper;
         protected Response _response;
 
-        public UsuarioController(ILogger<UsuarioController> logger, IUsuarioRepositorio usuarioRepo, IMapper mapper)
+        public UsuarioController(ILogger<UsuarioController> logger, IUsuarioRepositorio usuarioRepo,IntentosFallidosManager intentosFallidosManager, IMapper mapper)
         {
             _logger = logger;
             _usuarioRepo = usuarioRepo;
+            _intentosFallidosManager = intentosFallidosManager;
             _mapper = mapper;
             _response = new();
         }
@@ -130,6 +132,81 @@ namespace FacturacionAPI1.Controllers
             }
             return _response;
         }
+
+        [HttpPost("login")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<Response>> Login([FromBody] Usuario usuarioLogin)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var intentosFallidos = _intentosFallidosManager.ObtenerIntentosFallidos(usuarioLogin.Usuario1);
+                var ultimoIntentoFallido = _intentosFallidosManager.ObtenerUltimoIntentoFallido(usuarioLogin.Usuario1);
+
+                if (intentosFallidos >= 3 && ultimoIntentoFallido.HasValue)
+                {
+                    var tiempoTranscurrido = DateTime.UtcNow - ultimoIntentoFallido.Value;
+                    if (tiempoTranscurrido.TotalMinutes < 1)
+                    {
+                        _response.IsExitoso = false;
+                        _response.ErrorMessages = new List<string> { "Usuario bloqueado. Espere 1 minuto." };
+                        _response.statusCode = HttpStatusCode.Unauthorized;
+                        return Unauthorized(_response);
+                    }
+                    else
+                    {
+                        // Si han pasado más de 1 minuto, reiniciamos los intentos fallidos
+                        _intentosFallidosManager.ReiniciarIntentosFallidos(usuarioLogin.Usuario1);
+                    }
+                }
+
+                // Verificar si el usuario existe
+                var usuario = await _usuarioRepo.ObtenerUsuarioPorCredenciales(usuarioLogin.Usuario1, usuarioLogin.Contraseña);
+
+                if (usuario == null)
+                {
+                    _intentosFallidosManager.RegistrarIntentoFallido(usuarioLogin.Usuario1);
+
+                    _response.IsExitoso = false;
+                    _response.ErrorMessages = new List<string> { "Credenciales inválidas" };
+                    _response.statusCode = HttpStatusCode.Unauthorized;
+                    if (_intentosFallidosManager.ObtenerIntentosFallidos(usuarioLogin.Usuario1) >= 3)
+                    {                  
+                        _intentosFallidosManager.BloquearUsuario(usuarioLogin.Usuario1);
+
+                        _response.ErrorMessages.Add("Usuario bloqueado. Contacte al administrador.");
+                    }
+
+                    return Unauthorized(_response);
+                }     
+                _intentosFallidosManager.ReiniciarIntentosFallidos(usuarioLogin.Usuario1);
+
+                _response.Resultado = new { Usuario = usuario.Usuario1 };
+                _response.statusCode = HttpStatusCode.OK;
+
+                return Ok(_response);
+            }
+            catch (Exception ex)
+            {
+                _response.IsExitoso = false;
+                _response.ErrorMessages = new List<string> { ex.ToString() };
+                return StatusCode(StatusCodes.Status500InternalServerError, _response);
+            }
+        }
+
+
+
+
+
+
+
+
+
 
 
 

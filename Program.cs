@@ -8,6 +8,7 @@ using FacturacionAPI1.Repository;
 using FacturacionAPI1.Repository.IRepositorio;
 using System.Text.Json.Serialization;
 using FacturacionAPI1;
+using AutoMapper;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -51,6 +52,18 @@ builder.Services.AddCors(options =>
         app.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
     });
 });
+
+builder.Services.AddSingleton<IntentosFallidosManager>();
+
+
+// En algún lugar de tu código (preferiblemente en el inicio de tu aplicación), asegúrate de registrar el perfil de mapeo:
+var config = new MapperConfiguration(cfg => cfg.AddProfile<MappingConfig>());
+var mapper = config.CreateMapper();
+
+builder.Services.AddAutoMapper(typeof(Producto));
+
+
+
 
 var app = builder.Build();
 

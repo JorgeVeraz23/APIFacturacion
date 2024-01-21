@@ -140,11 +140,45 @@ namespace FacturacionAPI1.Controllers
             return _response;
         }
 
+        /*   [HttpDelete("{id:int}")]
+           [ProducesResponseType(StatusCodes.Status204NoContent)]
+           [ProducesResponseType(StatusCodes.Status400BadRequest)]
+           [ProducesResponseType(StatusCodes.Status404NotFound)]
+
+           public async Task<IActionResult> DeleteFamiliaProducto(int id)
+           {
+               try
+               {
+                   if (id == 0)
+                   {
+                       _response.IsExitoso = false;
+                       _response.statusCode = HttpStatusCode.BadRequest;
+                       return BadRequest(_response);
+                   }
+                   var familiaproducto = await _familiaProductoRepo.Obtener(v => v.IdFamilia == id);
+                   if (familiaproducto == null)
+                   {
+                       _response.IsExitoso = false;
+                       _response.statusCode = HttpStatusCode.NotFound;
+                       return NotFound(_response);
+                   }
+                   await _familiaProductoRepo.Remover(familiaproducto);
+                   _response.statusCode = HttpStatusCode.NoContent;
+                   return BadRequest(_response);
+               }
+               catch (Exception ex)
+               {
+                   _response.IsExitoso = false;
+                   _response.ErrorMessages = new List<string>() { ex.ToString() };
+
+                   throw;
+               }
+           }*/
+
         [HttpDelete("{id:int}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-
         public async Task<IActionResult> DeleteFamiliaProducto(int id)
         {
             try
@@ -155,16 +189,23 @@ namespace FacturacionAPI1.Controllers
                     _response.statusCode = HttpStatusCode.BadRequest;
                     return BadRequest(_response);
                 }
+
                 var familiaproducto = await _familiaProductoRepo.Obtener(v => v.IdFamilia == id);
+
                 if (familiaproducto == null)
                 {
                     _response.IsExitoso = false;
                     _response.statusCode = HttpStatusCode.NotFound;
                     return NotFound(_response);
                 }
-                await _familiaProductoRepo.Remover(familiaproducto);
+
+                // Cambiar el valor de la propiedad "Activo" a false en lugar de eliminar físicamente
+                familiaproducto.Activo = false;
+
+                await _familiaProductoRepo.Actualizar(familiaproducto); // Asumo que tienes un método para actualizar
+
                 _response.statusCode = HttpStatusCode.NoContent;
-                return BadRequest(_response);
+                return NoContent(); // Devolver NoContent en lugar de BadRequest
             }
             catch (Exception ex)
             {
@@ -174,6 +215,7 @@ namespace FacturacionAPI1.Controllers
                 throw;
             }
         }
+
 
         [HttpPut("{id:int}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]

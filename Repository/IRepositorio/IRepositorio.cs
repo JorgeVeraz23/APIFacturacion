@@ -11,6 +11,7 @@ namespace FacturacionAPI1.Repository.IRepositorio
         Task<T> Obtener(Expression<Func<T, bool>> filtro = null, bool tracked = true);
         Task Remover(T entidad);
         Task Grabar();
+        Task<T> ObtenerUsuarioPorCredenciales(string usuario, string contraseña);
 
     }
 }

@@ -10,6 +10,7 @@ using FacturacionAPI1.Models.Dto;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 
 namespace FacturacionAPI1.Controllers
 {
@@ -95,6 +96,76 @@ namespace FacturacionAPI1.Controllers
             }
 
         }
+
+        [HttpGet("ultimoDetalleFacturaId")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<int> ObtenerUltimoDetalleFacturaId()
+        {
+            try
+            {
+                // Esperar la finalización de la tarea para obtener la lista de detalles de factura
+                List<DetalleFactura> detallesFactura = await _detallefacturaRepo.ObtenerTodos();
+
+                // Obtener el último detalle de factura ordenado por IdItem de forma descendente
+                var ultimoDetalleFactura = detallesFactura.OrderByDescending(df => df.IdItem).FirstOrDefault();
+
+                if (ultimoDetalleFactura == null)
+                {
+                    // Manejar el caso en que no hay detalles de factura
+                    return -1;
+                }
+
+                // Devolver el IdItem del último detalle de factura
+                return ultimoDetalleFactura.IdItem;
+            }
+            catch (Exception ex)
+            {
+                // Manejar errores, loggear, etc.
+                return -1;
+            }
+        }
+        [HttpGet("BuscarPorIdFactura/{idFactura}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<Response>> BuscarDetallesPorIdFactura(int idFactura)
+        {
+            try
+            {
+                if (idFactura == 0)
+                {
+                    _response.IsExitoso = false;
+                    _response.statusCode = HttpStatusCode.BadRequest;
+                    return BadRequest(_response);
+                }
+
+                // Obtener los detalles de factura para la factura con el Id especificado
+                var detallesFactura = await _detallefacturaRepo.Obtener(df => df.IdFactura == idFactura);
+
+                if (detallesFactura == null)
+                {
+                    _response.statusCode = HttpStatusCode.NotFound;
+                    _response.IsExitoso = false;
+                    return NotFound(_response);
+                }
+
+                _response.Resultado = _mapper.Map<IEnumerable<DetalleFacturaDto>>(detallesFactura);
+                _response.statusCode = HttpStatusCode.OK;
+
+                return Ok(_response);
+            }
+            catch (Exception ex)
+            {
+                _response.IsExitoso = false;
+                _response.ErrorMessages = new List<string> { ex.ToString() };
+                return StatusCode(StatusCodes.Status500InternalServerError, _response);
+            }
+        }
+
+
+
         /*
                 [HttpPost]
                 [ProducesResponseType(StatusCodes.Status201Created)]
@@ -158,20 +229,18 @@ namespace FacturacionAPI1.Controllers
         {
             try
             {
-                // Validation
                 if (!ModelState.IsValid)
                 {
                     return BadRequest(ModelState);
                 }
 
-                // Retrieve factura
+
                 Factura factura = await _facturaRepo.Obtener(v => v.IdFactura == idFactura);
                 if (factura == null)
                 {
                     return NotFound();
                 }
 
-                // Validate product existence and stock availability
                 Producto producto = await _productoRepo.Obtener(v => v.Codigo == itemDto.CodigoProducto);
                 if (producto == null)
                 {
@@ -184,10 +253,10 @@ namespace FacturacionAPI1.Controllers
                     return BadRequest(ModelState);
                 }
 
-                // Create DetalleFactura entity
+               
                 DetalleFactura item = _mapper.Map<DetalleFactura>(itemDto);
                 item.IdFactura = factura.IdFactura;
-                item.Precio = producto.Precio; // Ensure consistent pricing
+                item.Precio = producto.Precio; 
                 item.Subtotal = item.Precio * item.Cantidad;
 
                 // Add item to factura
@@ -224,7 +293,6 @@ namespace FacturacionAPI1.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-
         public async Task<IActionResult> DeleteDetalleFactura(int id)
         {
             try
@@ -235,6 +303,7 @@ namespace FacturacionAPI1.Controllers
                     _response.statusCode = HttpStatusCode.BadRequest;
                     return BadRequest(_response);
                 }
+
                 var detallefactura = await _detallefacturaRepo.Obtener(v => v.IdItem == id);
                 if (detallefactura == null)
                 {
@@ -242,9 +311,12 @@ namespace FacturacionAPI1.Controllers
                     _response.statusCode = HttpStatusCode.NotFound;
                     return NotFound(_response);
                 }
+
                 await _detallefacturaRepo.Remover(detallefactura);
+
+                // Devuelve correctamente un 204 NoContent en caso de éxito
                 _response.statusCode = HttpStatusCode.NoContent;
-                return BadRequest(_response);
+                return NoContent();
             }
             catch (Exception ex)
             {
@@ -254,6 +326,7 @@ namespace FacturacionAPI1.Controllers
                 throw;
             }
         }
+
         /*
         [HttpPut("{id:int}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -297,7 +370,7 @@ namespace FacturacionAPI1.Controllers
             _response.statusCode = HttpStatusCode.NoContent;
             return Ok(_response);
         }*/
-
+        /*
 
         [HttpPut("UpdateItem/{idFactura}/{idItem}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -368,7 +441,7 @@ namespace FacturacionAPI1.Controllers
                 _response.ErrorMessages = new List<string>() { ex.ToString() };
                 return BadRequest(_response);
             }
-        }
+        }*/
 
 
 

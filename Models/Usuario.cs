@@ -22,6 +22,8 @@ public partial class Usuario
 
     public int? IntentosFallidos { get; set; }
 
+ 
+
     public bool? Bloqueado { get; set; }
 
     [Column(TypeName = "datetime")]

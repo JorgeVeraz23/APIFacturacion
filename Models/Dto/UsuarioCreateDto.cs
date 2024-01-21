@@ -15,5 +15,7 @@ namespace FacturacionAPI1.Models.Dto
         public int? IntentosFallidos { get; set; }
 
         public bool? Bloqueado { get; set; }
+
+  
     }
 }

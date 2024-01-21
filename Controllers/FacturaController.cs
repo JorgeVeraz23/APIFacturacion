@@ -95,6 +95,77 @@ namespace FacturacionAPI1.Controllers
 
         }
 
+        /* [HttpGet("ultimaFactura")]
+         [ProducesResponseType(StatusCodes.Status200OK)]
+         [ProducesResponseType(StatusCodes.Status404NotFound)]
+         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+         public async Task<ActionResult<Response>> ObtenerUltimaFactura()
+         {
+             try
+             {
+                 // Esperar la finalización de la tarea para obtener la lista de facturas
+                 List<Factura> facturas = await _facturaRepo.ObtenerTodos();
+
+                 // Obtener la última factura ordenada por ID de forma descendente
+                 var ultimaFactura = facturas.OrderByDescending(f => f.IdFactura).FirstOrDefault();
+
+                 if (ultimaFactura == null)
+                 {
+                     // Manejar el caso en que no hay facturas
+                     _response.statusCode = HttpStatusCode.NotFound;
+                     _response.IsExitoso = false;
+                     return NotFound(_response);
+                 }
+
+                 // Devolver la última factura
+                 _response.Resultado = _mapper.Map<FacturaDto>(ultimaFactura);
+                 _response.statusCode = HttpStatusCode.OK;
+
+                 return Ok(_response);
+             }
+             catch (Exception ex)
+             {
+                 // Manejar errores, loggear, etc.
+                 _response.IsExitoso = false;
+                 _response.ErrorMessages = new List<string> { ex.ToString() };
+                 return StatusCode(StatusCodes.Status500InternalServerError, _response);
+             }
+         }*/
+
+        [HttpGet("ultimaFactura")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<Tuple<int, int>> ObtenerUltimaFactura()
+        {
+            try
+            {
+                // Esperar la finalización de la tarea para obtener la lista de facturas
+                List<Factura> facturas = await _facturaRepo.ObtenerTodos();
+
+                // Obtener la última factura ordenada por ID de forma descendente
+                var ultimaFactura = facturas.OrderByDescending(f => f.IdFactura).FirstOrDefault();
+
+                if (ultimaFactura == null)
+                {
+                    // Manejar el caso en que no hay facturas
+                    return Tuple.Create(-1, -1);
+                }
+
+                // Devolver el idFactura y el idUsuario de la última factura
+                return Tuple.Create(ultimaFactura.IdFactura, ultimaFactura.IdUsuario ?? -1);
+            }
+            catch (Exception ex)
+            {
+                // Manejar errores, loggear, etc.
+                return Tuple.Create(-1, -1);
+            }
+        }
+
+
+
+
+
 
         [HttpPost]
         [ProducesResponseType(StatusCodes.Status201Created)]
@@ -104,39 +175,36 @@ namespace FacturacionAPI1.Controllers
         {
             try
             {
-                // Validation
+  
                 if (!ModelState.IsValid)
                 {
                     return BadRequest(ModelState);
                 }
 
-                // Check for valid user
                 if (await _usuarioRepo.Obtener(v => v.IdUsuario == createDto.IdUsuario) == null)
                 {
                     ModelState.AddModelError("ClaveForanea", "El Id de usuario no existe");
                     return BadRequest(ModelState);
                 }
-
-                // Map to Factura entity
+    
                 Factura factura = _mapper.Map<Factura>(createDto);
 
-                // Set creation and update timestamps
+              
                 factura.FechaCreacion = DateTime.Now;
                 factura.FechaActualizacion = DateTime.Now;
 
-                // Save factura
+                // Guardar Factura
                 await _facturaRepo.Crear(factura);
 
-                // Calculate IGV and Total
-                decimal igv = factura.Subtotal * factura.PorcentajeIgv;
+                // Calculo del IGV
+                decimal igv = factura.Subtotal * (factura.PorcentajeIgv/100);
                 decimal total = factura.Subtotal + igv;
                 factura.Igv = igv;
                 factura.Total = total;
 
-                // Update factura with calculated values
+                
                 await _facturaRepo.Grabar();
 
-                // Prepare response
                 _response.Resultado = factura;
                 _response.statusCode = HttpStatusCode.Created;
 
@@ -249,8 +317,8 @@ namespace FacturacionAPI1.Controllers
                 factura.FechaActualizacion = DateTime.Now;
 
                 // Ensure consistency with IGV and total
-                decimal igv = factura.Subtotal * factura.PorcentajeIgv;
-                decimal total = factura.Subtotal + igv;
+                decimal igv = Math.Round(factura.Subtotal * (factura.PorcentajeIgv / 100), 2);
+                decimal total = Math.Round(factura.Subtotal + igv, 2);
                 factura.Igv = igv;
                 factura.Total = total;
 

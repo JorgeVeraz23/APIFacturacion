@@ -23,6 +23,9 @@ namespace FacturacionAPI1.Models.Dto
 
         public DateTime? FechaCreacion { get; set; }
 
+   
+
+
         [Required]
         public int? IdUsuario { get; set; }
     }

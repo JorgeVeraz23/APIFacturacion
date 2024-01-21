@@ -25,12 +25,12 @@ namespace FacturacionAPI1.Controllers
         private readonly IFamiliaProductoRepositorio _familiaproductoRepo;
         protected Response _response;
 
-        public ProductoController(ILogger<ProductoController> logger, IProductoRepositorio productoRepo, IUsuarioRepositorio usuarioRepo, IFamiliaProductoRepositorio familiaproductoRepo,IMapper mapper)
+        public ProductoController(ILogger<ProductoController> logger, IProductoRepositorio productoRepo, IUsuarioRepositorio usuarioRepo, IFamiliaProductoRepositorio familiaproductoRepo, IMapper mapper)
         {
             _logger = logger;
             _productoRepo = productoRepo;
             _usuarioRepo = usuarioRepo;
-            _familiaproductoRepo = familiaproductoRepo; 
+            _familiaproductoRepo = familiaproductoRepo;
             _mapper = mapper;
             _response = new();
         }

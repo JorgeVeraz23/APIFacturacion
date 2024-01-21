@@ -25,6 +25,12 @@ namespace FacturacionAPI1.Repository
             await Grabar();
         }
 
+        public async Task<T> ObtenerUsuarioPorCredenciales(string usuario, string contraseña)
+        {
+            // Asegúrate de que la entidad T tenga las propiedades Usuario1 y Contraseña
+            return await dbSet.FirstOrDefaultAsync(u => EF.Property<string>(u, "Usuario1") == usuario && EF.Property<string>(u, "Contraseña") == contraseña);
+        }
+
         public async Task Grabar()
         {
             await _db.SaveChangesAsync();
