@@ -95,42 +95,6 @@ namespace FacturacionAPI1.Controllers
 
         }
 
-        /* [HttpGet("ultimaFactura")]
-         [ProducesResponseType(StatusCodes.Status200OK)]
-         [ProducesResponseType(StatusCodes.Status404NotFound)]
-         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-         public async Task<ActionResult<Response>> ObtenerUltimaFactura()
-         {
-             try
-             {
-                 // Esperar la finalización de la tarea para obtener la lista de facturas
-                 List<Factura> facturas = await _facturaRepo.ObtenerTodos();
-
-                 // Obtener la última factura ordenada por ID de forma descendente
-                 var ultimaFactura = facturas.OrderByDescending(f => f.IdFactura).FirstOrDefault();
-
-                 if (ultimaFactura == null)
-                 {
-                     // Manejar el caso en que no hay facturas
-                     _response.statusCode = HttpStatusCode.NotFound;
-                     _response.IsExitoso = false;
-                     return NotFound(_response);
-                 }
-
-                 // Devolver la última factura
-                 _response.Resultado = _mapper.Map<FacturaDto>(ultimaFactura);
-                 _response.statusCode = HttpStatusCode.OK;
-
-                 return Ok(_response);
-             }
-             catch (Exception ex)
-             {
-                 // Manejar errores, loggear, etc.
-                 _response.IsExitoso = false;
-                 _response.ErrorMessages = new List<string> { ex.ToString() };
-                 return StatusCode(StatusCodes.Status500InternalServerError, _response);
-             }
-         }*/
 
         [HttpGet("ultimaFactura")]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -254,33 +218,6 @@ namespace FacturacionAPI1.Controllers
                 throw;
             }
         }
-
-        /*[HttpPut("{id:int}")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> UpdateFactura(int id, [FromBody] FacturaUpdateDto updateDto)
-        {
-            if (updateDto == null || id != updateDto.IdFactura)
-            {
-                _response.IsExitoso = false;
-                _response.statusCode = HttpStatusCode.BadRequest;
-                return BadRequest(_response);
-            }
-
-
-            if (await _usuarioRepo.Obtener(v => v.IdUsuario == updateDto.IdUsuario) == null)
-            {
-                ModelState.AddModelError("ClaveForanea", "El Id de Usuario no existe");
-                return BadRequest(ModelState);
-            }
-
-
-            Factura modelo = _mapper.Map<Factura>(updateDto);
-
-            await _facturaRepo.Actualizar(modelo);
-            _response.statusCode = HttpStatusCode.NoContent;
-            return Ok(_response);
-        }*/
 
         [HttpPut("{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]

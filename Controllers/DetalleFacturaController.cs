@@ -11,6 +11,8 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
+using System.Data.Common;
+
 
 namespace FacturacionAPI1.Controllers
 {
@@ -126,100 +128,45 @@ namespace FacturacionAPI1.Controllers
                 return -1;
             }
         }
+
         [HttpGet("BuscarPorIdFactura/{idFactura}")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<DetalleFacturaDto>))]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<Response>> BuscarDetallesPorIdFactura(int idFactura)
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<IEnumerable<DetalleFacturaDto>>> BuscarDetallesPorIdFactura(int idFactura)
         {
             try
             {
-                if (idFactura == 0)
+                if (idFactura <= 0)
                 {
-                    _response.IsExitoso = false;
-                    _response.statusCode = HttpStatusCode.BadRequest;
-                    return BadRequest(_response);
+                    return BadRequest("El ID de factura debe ser un número positivo.");
                 }
 
-                // Obtener los detalles de factura para la factura con el Id especificado
-                var detallesFactura = await _detallefacturaRepo.Obtener(df => df.IdFactura == idFactura);
+                var detallesFactura = await _detallefacturaRepo.ObtenerTodos(df => df.IdFactura == idFactura);
 
                 if (detallesFactura == null)
                 {
-                    _response.statusCode = HttpStatusCode.NotFound;
-                    _response.IsExitoso = false;
-                    return NotFound(_response);
+                    return NotFound($"No se encontraron detalles de factura para la factura con ID {idFactura}.");
                 }
 
-                _response.Resultado = _mapper.Map<IEnumerable<DetalleFacturaDto>>(detallesFactura);
-                _response.statusCode = HttpStatusCode.OK;
+                var detallesFacturaDto = _mapper.Map<IEnumerable<DetalleFacturaDto>>(detallesFactura);
 
-                return Ok(_response);
+                return Ok(detallesFacturaDto);
             }
-            catch (Exception ex)
+            catch (DbException dbEx)
             {
-                _response.IsExitoso = false;
-                _response.ErrorMessages = new List<string> { ex.ToString() };
-                return StatusCode(StatusCodes.Status500InternalServerError, _response);
+                _logger.LogError(dbEx, "Error de base de datos al buscar detalles de factura por ID.");
+                return StatusCode(StatusCodes.Status500InternalServerError, "Error de base de datos al buscar detalles de factura.");
             }
         }
 
 
 
-        /*
-                [HttpPost]
-                [ProducesResponseType(StatusCodes.Status201Created)]
-                [ProducesResponseType(StatusCodes.Status400BadRequest)]
-                [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-                public async Task<ActionResult<Response>> CrearDetalleFactura([FromBody] DetalleFacturaCreateDto createDto)
-                {
-                    try
-                    {
-                        if (!ModelState.IsValid)
-                        {
-                            return BadRequest(ModelState);
-                        }
 
-                        if (await _usuarioRepo.Obtener(v => v.IdUsuario == createDto.IdUsuario) == null)
-                        {
-                            ModelState.AddModelError("ClaveForanea", "El Id de usuario no existe");
-                            return BadRequest(ModelState);
-                        }
 
-                        if (await _facturaRepo.Obtener(v => v.IdFactura == createDto.IdFactura) == null)
-                        {
-                            ModelState.AddModelError("ClaveForanea", "El Id de factura no existe");
-                            return BadRequest(ModelState);
-                        }
 
-                       var codigoProducto = createDto.CodigoProducto.ToUpperInvariant(); // Convierte a mayúsculas para comparación sin distinción de mayúsculas y minúsculas
-                        var productosEnMemoria = await _productoRepo.ObtenerTodos();
-                        var productoEnMemoria = productosEnMemoria.FirstOrDefault(p => p.Codigo.ToUpperInvariant() == codigoProducto);
 
-                        if (productoEnMemoria == null)
-                        {
-                            ModelState.AddModelError(nameof(createDto.CodigoProducto), "El código del producto no existe");
-                            return BadRequest(ModelState);
-                        }
-
-                        DetalleFactura modelo = _mapper.Map<DetalleFactura>(createDto);
-                        modelo.FechaCreacion = DateTime.Now;
-                        modelo.FechaActualizacion = DateTime.Now;
-
-                        await _detallefacturaRepo.Crear(modelo);
-                        _response.Resultado = modelo;
-                        _response.statusCode = HttpStatusCode.Created;
-
-                        return CreatedAtRoute("GetDetalleFactura", new { id = modelo.IdItem }, _response);
-                    }
-                    catch (Exception ex)
-                    {
-                        _response.IsExitoso = false;
-                        _response.ErrorMessages = new List<string>() { ex.ToString() };
-                    }
-                    return _response;
-                }
-        */
 
         [HttpPost("AddItem/{idFactura}")]
         [ProducesResponseType(StatusCodes.Status201Created)]
@@ -259,17 +206,17 @@ namespace FacturacionAPI1.Controllers
                 item.Precio = producto.Precio; 
                 item.Subtotal = item.Precio * item.Cantidad;
 
-                // Add item to factura
+                // añadimos el item a la factura
                 factura.DetalleFacturas.Add(item);
 
-                // Update product stock
+                // validamos que cuando se genere un detalle factura se reduzca el stock
                 producto.Stock -= item.Cantidad;
 
-                // Save factura and product
+                // guardamos la factura y el producto
                 await _facturaRepo.Grabar();
-                await _productoRepo.Grabar(); // Ensure product update
+                await _productoRepo.Grabar(); // Con este codigo nosotros garantizamos la actualizacion del producto
 
-                // Update factura total
+                // actualizamos el total de la factura
                 decimal igv = factura.Subtotal * factura.PorcentajeIgv;
                 decimal total = factura.Subtotal + igv;
                 factura.Igv = igv;
@@ -312,6 +259,11 @@ namespace FacturacionAPI1.Controllers
                     return NotFound(_response);
                 }
 
+                Producto producto = await _productoRepo.Obtener(v => v.Codigo == detallefactura.CodigoProducto);
+
+                // Actualizamos Stock
+                producto.Stock += detallefactura.Cantidad;
+
                 await _detallefacturaRepo.Remover(detallefactura);
 
                 // Devuelve correctamente un 204 NoContent en caso de éxito
@@ -327,121 +279,8 @@ namespace FacturacionAPI1.Controllers
             }
         }
 
-        /*
-        [HttpPut("{id:int}")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> UpdateDetalleFactura(int id, [FromBody] DetalleFacturaUpdateDto updateDto)
-        {
-            if (updateDto == null || id != updateDto.IdItem)
-            {
-                _response.IsExitoso = false;
-                _response.statusCode = HttpStatusCode.BadRequest;
-                return BadRequest(_response);
-            }
 
-
-            if (await _usuarioRepo.Obtener(v => v.IdUsuario == updateDto.IdUsuario) == null)
-            {
-                ModelState.AddModelError("ClaveForanea", "El Id de usuario no existe");
-                return BadRequest(ModelState);
-            }
-
-            if (await _facturaRepo.Obtener(v => v.IdFactura == updateDto.IdFactura) == null)
-            {
-                ModelState.AddModelError("ClaveForanea", "El Id de factura no existe");
-                return BadRequest(ModelState);
-            }
-
-            var codigoProducto = updateDto.CodigoProducto.ToUpperInvariant(); // Convierte a mayúsculas para comparación sin distinción de mayúsculas y minúsculas
-            var productosEnMemoria = await _productoRepo.ObtenerTodos();
-            var productoEnMemoria = productosEnMemoria.FirstOrDefault(p => p.Codigo.ToUpperInvariant() == codigoProducto);
-
-            if (productoEnMemoria == null)
-            {
-                ModelState.AddModelError(nameof(updateDto.CodigoProducto), "El código del producto no existe");
-                return BadRequest(ModelState);
-            }
-
-
-            DetalleFactura modelo = _mapper.Map<DetalleFactura>(updateDto);
-
-            await _detallefacturaRepo.Actualizar(modelo);
-            _response.statusCode = HttpStatusCode.NoContent;
-            return Ok(_response);
-        }*/
-        /*
-
-        [HttpPut("UpdateItem/{idFactura}/{idItem}")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<Response>> UpdateItem(int idFactura, int idItem, [FromBody] DetalleFacturaUpdateDto itemDto)
-        {
-            try
-            {
-                // Validation
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(ModelState);
-                }
-
-                // Retrieve factura and existing item
-                Factura factura = await _facturaRepo.Obtener(v => v.IdFactura == idFactura);
-                if (factura == null)
-                {
-                    return NotFound();
-                }
-
-                DetalleFactura existingItem = await _detallefacturaRepo.Obtener(v => v.IdItem == idItem);
-                if (existingItem == null)
-                {
-                    return NotFound();
-                }
-
-                // Adjust product stock (if quantity changed)
-                if (existingItem.Cantidad != itemDto.Cantidad)
-                {
-                    Producto producto = await _productoRepo.Obtener(v => v.Codigo == existingItem.CodigoProducto);
-                    producto.Stock += existingItem.Cantidad; // Return previously withdrawn stock
-                    producto.Stock -= itemDto.Cantidad; // Subtract new quantity
-                    await _productoRepo.Grabar();
-                }
-
-                // Update subtotal and factura total
-                existingItem.Subtotal = existingItem.Precio * existingItem.Cantidad;
-                decimal igv = factura.Subtotal * factura.PorcentajeIgv;
-                decimal total = factura.Subtotal + igv;
-                factura.Igv = igv;
-                factura.Total = total;
-
-                // Save changes
-                await _facturaRepo.Grabar();
-
-                // Store the old IdItem value before changing it
-                int oldIdItemValue = existingItem.IdItem;
-
-                // Delete the existing item with the old IdItem value
-                _detallefacturaRepo.Remover(existingItem);
-                await _detallefacturaRepo.Grabar();  // SaveChanges
-
-                // Set the new IdItem value
-                existingItem.IdItem = itemDto.NewIdItem;
-
-                // Add the modified item back to the context
-                _detallefacturaRepo.Crear(existingItem);
-                await _detallefacturaRepo.Grabar();  // SaveChanges
-
-                _response.statusCode = HttpStatusCode.NoContent;
-                return Ok(_response);
-            }
-            catch (Exception ex)
-            {
-                _response.IsExitoso = false;
-                _response.ErrorMessages = new List<string>() { ex.ToString() };
-                return BadRequest(_response);
-            }
-        }*/
+        
 
 
 

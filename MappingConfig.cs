@@ -27,10 +27,12 @@ namespace FacturacionAPI1
 
             CreateMap<DetalleFactura, DetalleFacturaDto>().ReverseMap();
             CreateMap<DetalleFactura, DetalleFacturaCreateDto>().ReverseMap();
-            CreateMap<DetalleFactura, DetalleFacturaUpdateDto>().ReverseMap();
-
             
+            CreateMap<DetalleFactura, DetalleFacturaUpdateDto>().ReverseMap();
+           
+
 
         }
     }
+    
 }

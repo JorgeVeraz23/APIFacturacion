@@ -148,13 +148,55 @@ namespace FacturacionAPI1.Controllers
             }
             return _response;
         }
+        
+         [HttpDelete("{id:int}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> DeleteProducto(int id)
+        {
+            try
+            {
+                if (id == 0)
+                {
+                    _response.IsExitoso = false;
+                    _response.statusCode = HttpStatusCode.BadRequest;
+                    return BadRequest(_response);
+                }
 
+                var producto = await _productoRepo.Obtener(v => v.IdProducto == id);
+
+                if (producto == null)
+                {
+                    _response.IsExitoso = false;
+                    _response.statusCode = HttpStatusCode.NotFound;
+                    return NotFound(_response);
+                }
+
+                producto.Activo = false;
+
+                await _productoRepo.Actualizar(producto);
+
+                _response.statusCode = HttpStatusCode.NoContent;
+                return NoContent(); 
+            }
+            catch (Exception ex)
+            {
+                _response.IsExitoso = false;
+                _response.ErrorMessages = new List<string>() { ex.ToString() };
+
+                throw;
+            }
+        }
+        /*
+
+        
         [HttpDelete("{id:int}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
 
-        public async Task<IActionResult> DeleteProducto(int id)
+        public async Task<IActionResult> DeleteProductoReal(int id)
         {
             try
             {
@@ -183,6 +225,7 @@ namespace FacturacionAPI1.Controllers
                 throw;
             }
         }
+        */
 
         [HttpPut("{id:int}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]

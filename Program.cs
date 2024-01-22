@@ -56,12 +56,25 @@ builder.Services.AddCors(options =>
 builder.Services.AddSingleton<IntentosFallidosManager>();
 
 
-// En algún lugar de tu código (preferiblemente en el inicio de tu aplicación), asegúrate de registrar el perfil de mapeo:
-var config = new MapperConfiguration(cfg => cfg.AddProfile<MappingConfig>());
-var mapper = config.CreateMapper();
 
+// En algún lugar de tu código (preferiblemente en el inicio de tu aplicación), asegúrate de registrar el perfil de mapeo:
+var config = new MapperConfiguration(cfg => {
+    cfg.AddProfile<MappingConfig>();
+
+});
+var mapper = config.CreateMapper();
+builder.Services.AddSingleton(mapper);
 builder.Services.AddAutoMapper(typeof(Producto));
 
+try
+{
+    config.AssertConfigurationIsValid();
+    Console.WriteLine("Configuración de AutoMapper válida.");
+}
+catch (AutoMapperConfigurationException ex)
+{
+    Console.WriteLine(ex.Message);
+}
 
 
 
